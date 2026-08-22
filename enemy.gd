@@ -1,23 +1,23 @@
 extends CharacterBody3D
 
-# Mixamo FBX enemy support for Godot 4.2.2 + FBX2glTF.
+# Mixamo GLB enemy support for Godot 4.2.2.
 # Put the files here:
 # res://characters/enemy/
-#   enemy.fbx
-#   Idle.fbx
-#   Aiming.fbx
-#   Firing Rifle.fbx
-#   Jumping.fbx
-#   Dying.fbx
+#   enemy.glb
+#   Idle.glb
+#   Aiming.glb
+#   Firing Rifle.glb
+#   Jumping.glb
+#   Dying.glb
 
 const CHARACTER_DIR: String = "res://characters/enemy/"
-const MODEL_FILE: String = CHARACTER_DIR + "enemy.fbx"
+const MODEL_FILE: String = CHARACTER_DIR + "enemy.glb"
 const ANIMATION_FILES: Dictionary = {
-	"Idle": "Idle.fbx",
-	"Aiming": "Aiming.fbx",
-	"Firing Rifle": "Firing Rifle.fbx",
-	"Jumping": "Jumping.fbx",
-	"Dying": "Dying.fbx"
+	"Idle": "Idle.glb",
+	"Aiming": "Aiming.glb",
+	"Firing Rifle": "Firing Rifle.glb",
+	"Jumping": "Jumping.glb",
+	"Dying": "Dying.glb"
 }
 
 var health: int = 100
@@ -48,9 +48,7 @@ func _load_model() -> void:
 	add_child(model)
 	animation_player = _find_animation_player(model)
 	if animation_player == null:
-		animation_player = AnimationPlayer.new()
-		animation_player.name = "EnemyAnimationPlayer"
-		model.add_child(animation_player)
+		print("ERROR: No AnimationPlayer found in ", MODEL_FILE)
 
 func _load_mixamo_animations() -> void:
 	if animation_player == null:
