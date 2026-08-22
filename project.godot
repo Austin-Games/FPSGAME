@@ -1,5 +1,6 @@
 [application]
 config/name="FPSGAME"
+config/features=PackedStringArray("4.2", "GL Compatibility")
 run/main_scene="res://main.tscn"
 
 [display]
@@ -11,6 +12,10 @@ window/size/window_height_override=720
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[filesystem]
+import/fbx/enabled=true
+import/fbx2gltf/enabled=true
 
 [input]
 move_forward={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":87)]}
