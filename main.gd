@@ -52,6 +52,7 @@ func _build_level() -> void:
 	player.name = "Player"
 	player.position = Vector3(0,1,12)
 	player.set_script(load("res://player.gd"))
+	player.add_to_group("player")
 	add_child(player)
 
 	for p: Vector3 in [Vector3(-10,1,-8), Vector3(10,1,-10), Vector3(0,1,-15)]:
