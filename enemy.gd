@@ -9,7 +9,7 @@ var animation_player: AnimationPlayer
 var dying: bool = false
 var shooting: bool = false
 
-const CHARACTER_DIR: String = "res://characters/enemy/"
+const CHARACTER_DIR: String = "res://characters/Enemy/"
 const IDLE_FILE: String = CHARACTER_DIR + "Idle.fbx"
 const AIM_FILE: String = CHARACTER_DIR + "Aiming.fbx"
 const FIRE_FILE: String = CHARACTER_DIR + "Firing Rifle.fbx"
