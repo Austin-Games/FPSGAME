@@ -1,56 +1,96 @@
 extends CharacterBody3D
 
+# Mixamo FBX enemy support for Godot 4.2.2 + FBX2glTF.
+# Put the files here:
+# res://characters/enemy/
+#   enemy.fbx
+#   Idle.fbx
+#   Aiming.fbx
+#   Firing Rifle.fbx
+#   Jumping.fbx
+#   Dying.fbx
+
+const CHARACTER_DIR: String = "res://characters/enemy/"
+const MODEL_FILE: String = CHARACTER_DIR + "enemy.fbx"
+const ANIMATION_FILES: Dictionary = {
+	"Idle": "Idle.fbx",
+	"Aiming": "Aiming.fbx",
+	"Firing Rifle": "Firing Rifle.fbx",
+	"Jumping": "Jumping.fbx",
+	"Dying": "Dying.fbx"
+}
+
 var health: int = 100
 var speed: float = 2.5
 var attack_timer: float = 0.0
 var player: Node3D
 var model: Node3D
 var animation_player: AnimationPlayer
+var animations: Dictionary = {}
 var dying: bool = false
 var shooting: bool = false
-
-const CHARACTER_DIR: String = "res://characters/Enemy/"
-const IDLE_FILE: String = CHARACTER_DIR + "Idle.fbx"
-const AIM_FILE: String = CHARACTER_DIR + "Aiming.fbx"
-const FIRE_FILE: String = CHARACTER_DIR + "Firing Rifle.fbx"
-const JUMP_FILE: String = CHARACTER_DIR + "Jumping.fbx"
-const DIE_FILE: String = CHARACTER_DIR + "Dying.fbx"
+var current_animation: String = ""
 
 func _ready() -> void:
-	_load_character()
+	_load_model()
+	_load_mixamo_animations()
 	_build_collision()
 	player = get_tree().get_first_node_in_group("player") as Node3D
 	add_to_group("enemy")
+	_play_animation("Idle")
 
-func _load_character() -> void:
-	# Use the main enemy FBX if present. The animation FBXs are loaded below
-	# and their AnimationPlayer tracks are copied into this character.
-	var enemy_scene: PackedScene = load(CHARACTER_DIR + "enemy.fbx") as PackedScene
-	if enemy_scene:
-		model = enemy_scene.instantiate()
-		add_child(model)
-	else:
-		print("WARNING: Add characters/enemy/enemy.fbx for the enemy character.")
-		var mesh: MeshInstance3D = MeshInstance3D.new()
-		var box: BoxMesh = BoxMesh.new()
-		box.size = Vector3(0.9, 1.8, 0.9)
-		mesh.mesh = box
-		mesh.position.y = 0.9
-		mesh.material_override = _mat(Color(0.55, 0.12, 0.1))
-		add_child(mesh)
+func _load_model() -> void:
+	var scene: PackedScene = load(MODEL_FILE) as PackedScene
+	if scene == null:
+		print("ERROR: Missing ", MODEL_FILE)
+		return
+	model = scene.instantiate()
+	add_child(model)
+	animation_player = _find_animation_player(model)
+	if animation_player == null:
+		animation_player = AnimationPlayer.new()
+		animation_player.name = "EnemyAnimationPlayer"
+		model.add_child(animation_player)
 
-	animation_player = _find_animation_player(self)
-	if animation_player:
-		_play_animation("Idle")
-	else:
-		print("WARNING: No AnimationPlayer found in enemy.fbx")
+func _load_mixamo_animations() -> void:
+	if animation_player == null:
+		return
+	var library: AnimationLibrary = animation_player.get_animation_library("")
+	if library == null:
+		library = AnimationLibrary.new()
+		animation_player.add_animation_library("", library)
+	for animation_name: String in ANIMATION_FILES.keys():
+		var file_name: String = String(ANIMATION_FILES[animation_name])
+		var scene: PackedScene = load(CHARACTER_DIR + file_name) as PackedScene
+		if scene == null:
+			print("WARNING: Could not load ", CHARACTER_DIR + file_name)
+			continue
+		var animation_scene: Node = scene.instantiate()
+		var source_player: AnimationPlayer = _find_animation_player(animation_scene)
+		if source_player == null:
+			print("WARNING: No AnimationPlayer in ", file_name)
+			animation_scene.queue_free()
+			continue
+		var source_library: AnimationLibrary = source_player.get_animation_library("")
+		if source_library == null:
+			animation_scene.queue_free()
+			continue
+		var source_names: PackedStringArray = source_library.get_animation_list()
+		if source_names.is_empty():
+			animation_scene.queue_free()
+			continue
+		var source_animation: Animation = source_library.get_animation(source_names[0])
+		if source_animation != null:
+			library.add_animation(animation_name, source_animation.duplicate())
+			animations[animation_name] = true
+		animation_scene.queue_free()
 
 func _find_animation_player(root: Node) -> AnimationPlayer:
+	if root is AnimationPlayer:
+		return root as AnimationPlayer
 	for child: Node in root.get_children():
-		if child is AnimationPlayer:
-			return child as AnimationPlayer
 		var found: AnimationPlayer = _find_animation_player(child)
-		if found:
+		if found != null:
 			return found
 	return null
 
@@ -63,26 +103,13 @@ func _build_collision() -> void:
 	collision.position.y = 0.9
 	add_child(collision)
 
-func _mat(c: Color) -> StandardMaterial3D:
-	var m: StandardMaterial3D = StandardMaterial3D.new()
-	m.albedo_color = c
-	return m
-
 func _play_animation(animation_name: String) -> void:
-	if animation_player == null:
+	if animation_player == null or not animations.has(animation_name):
 		return
-	var animation_name_to_play: String = _find_animation_name(animation_name)
-	if animation_name_to_play != "":
-		animation_player.play(animation_name_to_play)
-
-func _find_animation_name(wanted: String) -> String:
-	if animation_player == null:
-		return ""
-	for name: StringName in animation_player.get_animation_list():
-		var clean: String = String(name).to_lower().replace("_", " ")
-		if clean.contains(wanted.to_lower()):
-			return String(name)
-	return ""
+	if current_animation == animation_name:
+		return
+	current_animation = animation_name
+	animation_player.play(animation_name)
 
 func _physics_process(delta: float) -> void:
 	if dying:
@@ -90,11 +117,9 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player") as Node3D
 		return
-
 	var flat: Vector3 = player.global_position - global_position
 	flat.y = 0.0
 	var distance: float = flat.length()
-
 	if distance > 7.0:
 		velocity = flat.normalized() * speed
 		look_at(global_position + flat, Vector3.UP)
@@ -134,7 +159,6 @@ func take_damage(amount: int) -> void:
 	if dying:
 		return
 	health -= amount
-	_play_animation("Aiming")
 	if health <= 0:
 		dying = true
 		velocity = Vector3.ZERO
